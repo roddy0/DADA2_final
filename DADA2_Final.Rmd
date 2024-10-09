@@ -5,9 +5,6 @@ output: github_document
 
 ---
 title: "R Notebook"
-```{r}
-library(gitcreds)
-gitcreds_set()
 ```
 ## Installing DADA2 Package
 ```{r}
