@@ -15,4 +15,76 @@ library(dada2); packageVersion("dada2")
 ```
 #In this line we indicate rstudio that we want to work with the external package DADA2
 
+##Importing the documents.
+#In terminal type wget and unzip 
 
+```{r}
+path <- "/home/rstudio/DADA2/MiSeq_SOP"
+list.files(path)
+```
+#We named the path to specify a folder where the files that you want to list are located
+#The list.files() function is to return a vector containing all the files names that are in our path
+#One file represents one sample with its respective primer used. In one file more than one sequences (reads) will be present but of the same length but of different quality. Some read will be unique while some reads will be variances or sequencing errors.
+
+##Matching lists of the forward and reverse fastq files
+```{r}
+fnFs <- sort(list.files(path, pattern="_R1_001.fastq", full.names = TRUE))
+fnRs <- sort(list.files(path, pattern="_R2_001.fastq", full.names = TRUE))
+sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1) #Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
+```
+#We use the list.files() function to find all files within the “path” that have the pattern “R1_001.fastq” in their name. The full.names = TRUE argument ensures that the full path to each file is included in the returned vector. The result is stored in the variable fnFs \#This is extracting sample names: We use the sapply() function to apply the strsplit() function to each element in the fnFs vector. strsplit() splits each file name based on the underscore character. The first element of each split is extracted using \[, 1\], and the resulting vector of sample names is stored in the variable sample.names.
+
+##Inspect read quality profiles
+#To inspect Inspect read (forward and reverse) quality profiles
+```{r}
+plotQualityProfile(fnFs[1:2]) 
+#Visualizing the quality profiles of the forward reads
+```
+
+```{r}
+plotQualityProfile(fnRs[1:2]) #Visualizeing the quality profile of the reverse reads
+```
+#[1:2] means sample. We can view all the samples quality profile as well
+
+##Filter and Trim
+#Based on these profiles, we will truncate the reverse reads at position 160 where the quality distribution crashes. Reads must still overlap after truncation in order to merge them later.
+```{r}
+filtFs <- file.path(path, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
+filtRs <- file.path(path, "filtered", paste0(sample.names, "_R_filt.fastq.gz")) #Place filtered files in filtered/subdirectory
+names(filtFs) <- sample.names
+names(filtRs) <- sample.names
+```
+```{r}
+out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,160),
+              maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
+              compress=TRUE, multithread=FALSE)
+head(out)
+```
+#The filterAndTrim() function from the DADA2 package is being used to filter and trim the fastq files. This step removes low-quality reads and trims the reads to a specific position.
+#reads.in: The number of reads in the original file.
+#reads.out: The number of reads that passed the filtering and trimming steps.
+#fnFs: A vector of file names for the forward reads.
+#filtFs: A vector of file names for the filtered forward reads.
+#fnRs: A vector of file names for the reverse reads.
+#filtRs: A vector of file names for the filtered reverse reads.
+#truncLen: A vector of two integers specifying the truncation lengths for the forward and reverse reads, respectively. In this case, the forward reads will be truncated to 240 base pairs and the reverse reads will be truncated to 160 base pairs.
+#The filterAndTrim() function performs the following steps: 1)Filters reads: It removes low-quality reads based on their quality scores. 2)Trims reads: It trims the reads to the specified truncation lengths. 3) Writes filtered reads: It writes the filtered reads to the files specified in filtFs and filtRs.
+
+
+##Learn the Error Rates
+#Error rate refers to the estimated rate at which sequencing errors occur in the raw sequencing data. These errors can arise from various factors, such as instrument noise, chemical reactions, and sample preparation issues.
+```{r}
+errF <- learnErrors(filtFs, multithread=TRUE)
+```
+```{r}
+errR <- learnErrors(filtRs, multithread=TRUE)
+```
+#The learnErrors() function estimates the error rates for each base position in the filtered reads. This information is used by DADA2 to denoise the data and assign reads to OTUs.
+#multithread=TRUE: This argument specifies that the function should use multiple threads to speed up the computation.
+
+##Visualization of the estimated error rates
+```{r}
+plotErrors(errF, nominalQ=TRUE)
+```
+
+##Sample Inference Analysis
