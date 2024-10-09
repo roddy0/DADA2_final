@@ -1,0 +1,18 @@
+---
+title: "R Notebook"
+output: github_document
+
+
+---
+title: "R Notebook"
+```{r}
+library(gitcreds)
+gitcreds_set()
+```
+## Installing DADA2 Package
+```{r}
+library(dada2); packageVersion("dada2")
+```
+#In this line we indicate rstudio that we want to work with the external package DADA2
+
+
